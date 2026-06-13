@@ -2,7 +2,7 @@
   <AuthenticatedLayout>
     <template #header>
       <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold text-gray-800">Credit Note #{{ note?.note_number }}</h2>
+        <h2 class="text-xl font-semibold text-gray-800">Credit Note #{{ note?.credit_note_number }}</h2>
         <RouterLink to="/credit-notes" class="text-sm text-indigo-600 hover:underline">← Credit Notes</RouterLink>
       </div>
     </template>

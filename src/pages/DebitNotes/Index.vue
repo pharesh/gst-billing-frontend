@@ -52,6 +52,10 @@
           </table>
           <div class="px-4 py-3 border-t flex justify-between text-sm text-gray-500">
             <span>Showing {{ debitNotes.from ?? 0 }}–{{ debitNotes.to ?? 0 }} of {{ debitNotes.total ?? 0 }}</span>
+            <div class="flex gap-2">
+              <button v-if="debitNotes.current_page > 1" @click="goToPage(debitNotes.current_page - 1)" class="text-indigo-600 hover:underline">← Prev</button>
+              <button v-if="debitNotes.current_page < debitNotes.last_page" @click="goToPage(debitNotes.current_page + 1)" class="text-indigo-600 hover:underline">Next →</button>
+            </div>
           </div>
         </div>
       </div>
@@ -59,22 +63,26 @@
   </AuthenticatedLayout>
 </template>
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout.vue'
 import api from '@/api/index.js'
 
 const route  = useRoute()
 const router = useRouter()
-const debitNotes = ref({ data: [], total: 0 })
+const debitNotes = ref({ data: [], total: 0, current_page: 1, last_page: 1 })
 const search     = ref(route.query.search ?? '')
+const page       = ref(Number(route.query.page ?? 1))
 
 async function loadData() {
-    const { data } = await api.get('/debit-notes', { params: { search: search.value } })
+    const { data } = await api.get('/debit-notes', { params: { search: search.value, page: page.value } })
     debitNotes.value = data.debitNotes
 }
-function applySearch() { router.push({ query: search.value ? { search: search.value } : {} }) }
+function applySearch() { page.value = 1; router.push({ query: search.value ? { search: search.value } : {} }) }
+function goToPage(p) { page.value = p; router.push({ query: { search: search.value, page: p } }) }
 async function del(id) { if (!confirm('Delete this debit note?')) return; await api.delete(`/debit-notes/${id}`); loadData() }
 function fmt(n) { return '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }
+
+watch(() => route.query, () => { search.value = route.query.search ?? ''; page.value = Number(route.query.page ?? 1); loadData() })
 onMounted(loadData)
 </script>

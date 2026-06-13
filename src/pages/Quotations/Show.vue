@@ -4,8 +4,8 @@
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-semibold text-gray-800">Quotation #{{ quotation?.quotation_number }}</h2>
         <div class="flex gap-2">
-          <RouterLink :to="'/quotations/' + $route.params.id + '/edit'" class="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">Edit</RouterLink>
-          <a :href="`${apiBase}/quotations/${$route.params.id}/download`" target="_blank" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">Download PDF</a>
+          <RouterLink :to="'/quotations/' + route.params.id + '/edit'" class="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">Edit</RouterLink>
+          <a :href="`${apiBase}/quotations/${route.params.id}/download`" target="_blank" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">Download PDF</a>
           <RouterLink to="/quotations" class="text-sm text-indigo-600 hover:underline self-center">← Quotations</RouterLink>
         </div>
       </div>

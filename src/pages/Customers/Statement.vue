@@ -14,7 +14,7 @@
           <span class="text-gray-500 text-sm">to</span>
           <input v-model="to" type="date" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
           <button @click="loadData" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">Apply</button>
-          <a :href="`${apiBase}/customers/${$route.params.id}/statement/download?from=${from}&to=${to}`" target="_blank" class="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">Export PDF</a>
+          <a :href="`${apiBase}/customers/${route.params.id}/statement/download?from=${from.value}&to=${to.value}`" target="_blank" class="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">Export PDF</a>
         </div>
 
         <div v-if="loading" class="text-center py-12 text-gray-400">Loading...</div>

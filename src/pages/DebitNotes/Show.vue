@@ -2,7 +2,7 @@
   <AuthenticatedLayout>
     <template #header>
       <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold text-gray-800">Debit Note #{{ note?.note_number }}</h2>
+        <h2 class="text-xl font-semibold text-gray-800">Debit Note #{{ note?.debit_note_number }}</h2>
         <RouterLink to="/debit-notes" class="text-sm text-indigo-600 hover:underline">← Debit Notes</RouterLink>
       </div>
     </template>

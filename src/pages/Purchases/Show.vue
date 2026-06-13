@@ -4,7 +4,7 @@
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-semibold text-gray-800">Bill #{{ purchase?.bill_number }}</h2>
         <div class="flex gap-2">
-          <RouterLink :to="'/purchases/' + $route.params.id + '/edit'" class="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">Edit</RouterLink>
+          <RouterLink :to="'/purchases/' + route.params.id + '/edit'" class="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">Edit</RouterLink>
           <RouterLink to="/purchases" class="text-sm text-indigo-600 hover:underline self-center">← Purchases</RouterLink>
         </div>
       </div>

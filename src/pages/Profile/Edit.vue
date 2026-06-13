@@ -69,6 +69,9 @@ const profileForm  = reactive({ name: '', email: '' })
 const passwordForm = reactive({ current_password: '', password: '', password_confirmation: '' })
 
 async function loadData() {
+    if (!auth.user) {
+        await auth.fetchUser()
+    }
     profileForm.name  = auth.user?.name ?? ''
     profileForm.email = auth.user?.email ?? ''
     loading.value = false
