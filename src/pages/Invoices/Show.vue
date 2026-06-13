@@ -1,0 +1,330 @@
+<template>
+  <AuthenticatedLayout>
+    <template #header>
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <div class="flex items-center gap-3">
+          <RouterLink to="/invoices" class="text-gray-500 hover:text-gray-700">← Back</RouterLink>
+          <h2 class="text-xl font-semibold text-gray-800">{{ invoice.invoice_number }}</h2>
+          <span class="px-2 py-1 rounded-full text-xs font-bold" :class="statusClass(invoice.payment_status)">
+            {{ invoice.payment_status?.toUpperCase() }}
+          </span>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <RouterLink v-if="invoice.payment_status !== 'paid'" :to="`/invoices/${invoice.id}/edit`"
+            class="px-3 py-2 border border-gray-400 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Edit</RouterLink>
+          <button @click="sendWhatsApp" class="px-3 py-2 border border-green-500 text-green-700 rounded-lg text-sm hover:bg-green-50">WhatsApp</button>
+          <button @click="sendEmail" class="px-3 py-2 border border-blue-400 text-blue-700 rounded-lg text-sm hover:bg-blue-50">Send Email</button>
+          <button v-if="invoice.payment_status !== 'paid'" @click="sendReminder" class="px-3 py-2 border border-orange-400 text-orange-700 rounded-lg text-sm hover:bg-orange-50">Send Reminder</button>
+          <a :href="`${apiBase}/invoices/${invoice.id}/download`" target="_blank" class="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Download PDF</a>
+          <RouterLink :to="`/credit-notes/create?invoice_id=${invoice.id}`" class="px-3 py-2 border border-amber-400 text-amber-700 rounded-lg text-sm hover:bg-amber-50">Credit Note</RouterLink>
+          <button v-if="invoice.payment_status !== 'paid'" @click="showPaymentForm = !showPaymentForm" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">Record Payment</button>
+        </div>
+      </div>
+    </template>
+
+    <div class="py-6">
+      <div class="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6" v-if="!loading">
+
+        <!-- e-Invoice IRN Section -->
+        <div class="bg-white rounded-lg shadow p-5">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-semibold text-gray-800">e-Invoice (IRN)</h3>
+              <p class="text-xs text-gray-500 mt-0.5">Mandatory for businesses with turnover > ₹5 Cr.</p>
+            </div>
+            <div class="flex gap-2 items-center">
+              <template v-if="!invoice.irn">
+                <button @click="generateIRN" class="px-3 py-1.5 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-700">Generate IRN</button>
+              </template>
+              <template v-else>
+                <div class="text-right">
+                  <div class="text-xs font-mono text-teal-700">{{ invoice.irn }}</div>
+                  <div class="text-xs text-gray-400">Ack: {{ invoice.ack_no }} | {{ invoice.ack_date }}</div>
+                </div>
+                <span class="px-2 py-0.5 rounded-full text-xs font-bold" :class="invoice.irn_status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-teal-100 text-teal-700'">
+                  {{ invoice.irn_status?.toUpperCase() }}
+                </span>
+                <button v-if="invoice.irn_status !== 'cancelled'" @click="showCancelIRN = !showCancelIRN" class="px-3 py-1.5 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50">Cancel IRN</button>
+              </template>
+            </div>
+          </div>
+          <div v-if="showCancelIRN" class="mt-3 pt-3 border-t flex items-center gap-3">
+            <label class="text-sm text-gray-600">Cancel Reason:</label>
+            <select v-model="cancelReason" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
+              <option value="1">Duplicate</option>
+              <option value="2">Data Entry Mistake</option>
+              <option value="3">Order Cancelled</option>
+              <option value="4">Others</option>
+            </select>
+            <button @click="cancelIRN" class="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">Confirm Cancel</button>
+            <button @click="showCancelIRN = false" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">Close</button>
+          </div>
+        </div>
+
+        <!-- Payment Link Section -->
+        <div v-if="invoice.payment_status !== 'paid'" class="bg-white rounded-lg shadow p-5">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-semibold text-gray-800">Online Payment Link</h3>
+              <p class="text-xs text-gray-500 mt-0.5">Share a Razorpay payment link with the customer.</p>
+            </div>
+            <div class="flex gap-2">
+              <button v-if="!paymentLink" @click="generatePaymentLink" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">Generate Link</button>
+              <template v-else>
+                <input :value="paymentLink" readonly class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm font-mono text-indigo-700 bg-indigo-50 w-64" />
+                <button @click="copyLink" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" :class="linkCopied ? 'text-green-600 border-green-400' : 'text-gray-700'">
+                  {{ linkCopied ? '✓ Copied' : 'Copy' }}
+                </button>
+                <a :href="paymentLink" target="_blank" class="px-3 py-1.5 border border-indigo-300 text-indigo-700 rounded-lg text-sm hover:bg-indigo-50">Open</a>
+                <button @click="syncPaymentLink" class="px-3 py-1.5 border border-green-400 text-green-700 rounded-lg text-sm hover:bg-green-50">Sync Status</button>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <!-- Record Payment Form -->
+        <div v-if="showPaymentForm" class="bg-white rounded-lg shadow p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-semibold">Record Payment</h3>
+            <span class="text-sm text-gray-500">Balance Due: <span class="font-bold text-red-600">{{ fmt(invoice.balance_due) }}</span></span>
+          </div>
+          <form @submit.prevent="recordPayment" class="grid grid-cols-3 gap-4">
+            <div>
+              <label class="text-sm font-medium text-gray-700 block mb-1">Amount (₹)</label>
+              <input v-model.number="paymentForm.amount" type="number" step="0.01" :max="invoice.balance_due" min="0.01" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" required />
+              <p v-if="payErrors.amount" class="text-red-500 text-xs mt-1">{{ payErrors.amount[0] }}</p>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-700 block mb-1">Date</label>
+              <input v-model="paymentForm.payment_date" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" required />
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-700 block mb-1">Method</label>
+              <select v-model="paymentForm.payment_method" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                <option value="bank_transfer">Bank Transfer</option>
+                <option value="upi">UPI</option>
+                <option value="cash">Cash</option>
+                <option value="cheque">Cheque</option>
+                <option value="card">Card</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-700 block mb-1">Reference / UTR No.</label>
+              <input v-model="paymentForm.reference_number" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div class="col-span-2 flex items-end gap-2">
+              <button type="submit" :disabled="payProcessing" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50">Save Payment</button>
+              <button type="button" @click="paymentForm.amount = invoice.balance_due" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Full Amount</button>
+              <button type="button" @click="showPaymentForm = false" class="px-4 py-2 border border-gray-300 rounded-lg text-sm">Cancel</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Invoice Header -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="grid grid-cols-2 gap-6">
+            <div>
+              <div class="text-lg font-bold text-gray-900">{{ invoice.tenant?.name }}</div>
+              <div class="text-sm text-gray-500 mt-1">{{ invoice.tenant?.address }}</div>
+              <div v-if="invoice.tenant?.gstin" class="text-sm text-gray-500">GSTIN: {{ invoice.tenant?.gstin }}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm text-gray-500">Invoice Date: <span class="text-gray-800 font-medium">{{ invoice.invoice_date }}</span></div>
+              <div v-if="invoice.due_date" class="text-sm text-gray-500">Due Date: <span class="text-gray-800 font-medium">{{ invoice.due_date }}</span></div>
+              <div class="text-sm text-gray-500 mt-1">Type: {{ invoice.invoice_type?.toUpperCase() }} / {{ invoice.supply_type }}</div>
+            </div>
+          </div>
+          <div class="border-t mt-4 pt-4">
+            <div class="text-xs text-gray-400 uppercase font-medium mb-1">Bill To</div>
+            <div class="font-semibold text-gray-800">{{ invoice.customer?.name }}</div>
+            <div v-if="invoice.customer?.gstin" class="text-sm text-gray-500">GSTIN: {{ invoice.customer?.gstin }}</div>
+            <div class="text-sm text-gray-500">{{ invoice.customer?.address }}, {{ invoice.customer?.city }}</div>
+          </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 text-left font-medium text-gray-600">#</th>
+                <th class="px-4 py-3 text-left font-medium text-gray-600">Description</th>
+                <th class="px-4 py-3 text-left font-medium text-gray-600">HSN/SAC</th>
+                <th class="px-4 py-3 text-center font-medium text-gray-600">Qty</th>
+                <th class="px-4 py-3 text-right font-medium text-gray-600">Rate</th>
+                <th class="px-4 py-3 text-right font-medium text-gray-600">Taxable</th>
+                <th class="px-4 py-3 text-right font-medium text-gray-600">GST</th>
+                <th class="px-4 py-3 text-right font-medium text-gray-600">Total</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="(item, i) in invoice.items" :key="item.id">
+                <td class="px-4 py-3 text-gray-500">{{ i + 1 }}</td>
+                <td class="px-4 py-3">{{ item.description }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ item.hsn_sac_code || '—' }}</td>
+                <td class="px-4 py-3 text-center">{{ item.quantity }} {{ item.unit }}</td>
+                <td class="px-4 py-3 text-right">{{ fmt(item.price) }}</td>
+                <td class="px-4 py-3 text-right">{{ fmt(item.taxable_amount) }}</td>
+                <td class="px-4 py-3 text-right text-gray-500">{{ item.gst_rate }}%</td>
+                <td class="px-4 py-3 text-right font-medium">{{ fmt(item.total_amount) }}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="p-4 border-t">
+            <div class="flex justify-end">
+              <div class="w-72 space-y-1 text-sm">
+                <div class="flex justify-between text-gray-600"><span>Subtotal</span><span>{{ fmt(invoice.subtotal) }}</span></div>
+                <div v-if="invoice.cgst_amount > 0" class="flex justify-between text-gray-600"><span>CGST</span><span>{{ fmt(invoice.cgst_amount) }}</span></div>
+                <div v-if="invoice.sgst_amount > 0" class="flex justify-between text-gray-600"><span>SGST</span><span>{{ fmt(invoice.sgst_amount) }}</span></div>
+                <div v-if="invoice.igst_amount > 0" class="flex justify-between text-gray-600"><span>IGST</span><span>{{ fmt(invoice.igst_amount) }}</span></div>
+                <div class="flex justify-between font-bold text-gray-900 border-t pt-1 text-base"><span>Total</span><span>{{ fmt(invoice.total_amount) }}</span></div>
+                <div v-if="invoice.amount_paid > 0" class="flex justify-between text-green-600"><span>Paid</span><span>{{ fmt(invoice.amount_paid) }}</span></div>
+                <div v-if="invoice.balance_due > 0" class="flex justify-between font-bold text-red-600"><span>Balance Due</span><span>{{ fmt(invoice.balance_due) }}</span></div>
+              </div>
+            </div>
+            <div class="mt-3 text-xs text-gray-500 italic">{{ amountInWords }}</div>
+          </div>
+        </div>
+
+        <!-- Payment History -->
+        <div v-if="invoice.payments?.length > 0" class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-base font-semibold mb-3">Payment History</h3>
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-3 py-2 text-left font-medium text-gray-600">Date</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-600">Method</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-600">Reference</th>
+                <th class="px-3 py-2 text-right font-medium text-gray-600">Amount</th>
+                <th class="px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="p in invoice.payments" :key="p.id">
+                <td class="px-3 py-2">{{ p.payment_date }}</td>
+                <td class="px-3 py-2 capitalize">{{ p.payment_method?.replace('_', ' ') }}</td>
+                <td class="px-3 py-2 text-gray-500">{{ p.reference_number || '—' }}</td>
+                <td class="px-3 py-2 text-right font-medium text-green-700">{{ fmt(p.amount) }}</td>
+                <td class="px-3 py-2 text-right">
+                  <button @click="deletePayment(p.id)" class="text-xs text-red-500 hover:underline">Remove</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <div v-if="loading" class="text-center py-12 text-gray-400">Loading...</div>
+    </div>
+  </AuthenticatedLayout>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
+import AuthenticatedLayout from '@/layouts/AuthenticatedLayout.vue'
+import api from '@/api/index.js'
+import { useApi } from '@/composables/useApi.js'
+
+const route   = useRoute()
+const apiBase = import.meta.env.VITE_API_URL
+
+const { errors: payErrors, processing: payProcessing, submit } = useApi()
+
+const loading        = ref(true)
+const invoice        = ref({})
+const amountInWords  = ref('')
+const showPaymentForm = ref(false)
+const showCancelIRN  = ref(false)
+const cancelReason   = ref('1')
+const linkCopied     = ref(false)
+const paymentLink    = ref('')
+
+const paymentForm = reactive({
+    amount: 0, payment_date: new Date().toISOString().slice(0, 10),
+    payment_method: 'bank_transfer', reference_number: '',
+})
+
+async function loadData() {
+    loading.value = true
+    try {
+        const { data } = await api.get(`/invoices/${route.params.id}`)
+        invoice.value       = data.invoice
+        amountInWords.value = data.amountInWords ?? ''
+        paymentLink.value   = data.invoice.razorpay_payment_link_url ?? ''
+        paymentForm.amount  = data.invoice.balance_due
+    } finally {
+        loading.value = false
+    }
+}
+
+async function recordPayment() {
+    await submit('post', `/invoices/${invoice.value.id}/payments`, paymentForm, {
+        onSuccess: () => { showPaymentForm.value = false; loadData() },
+    })
+}
+
+async function deletePayment(id) {
+    if (!confirm('Remove this payment?')) return
+    await api.delete(`/payments/${id}`)
+    loadData()
+}
+
+async function sendWhatsApp() {
+    if (!confirm('Send invoice to customer via WhatsApp?')) return
+    await api.post(`/invoices/${invoice.value.id}/whatsapp`)
+    loadData()
+}
+
+async function sendEmail() {
+    if (!confirm('Send invoice to customer via email?')) return
+    await api.post(`/invoices/${invoice.value.id}/email`)
+    loadData()
+}
+
+async function sendReminder() {
+    if (!confirm('Send payment reminder via email & WhatsApp?')) return
+    await api.post(`/invoices/${invoice.value.id}/reminder`)
+    loadData()
+}
+
+async function generateIRN() {
+    if (!confirm('Generate IRN via NIC e-Invoice API?')) return
+    await api.post(`/invoices/${invoice.value.id}/irn`)
+    loadData()
+}
+
+async function cancelIRN() {
+    await api.post(`/invoices/${invoice.value.id}/irn/cancel`, { cancel_reason: cancelReason.value })
+    showCancelIRN.value = false
+    loadData()
+}
+
+async function generatePaymentLink() {
+    const { data } = await api.post(`/invoices/${invoice.value.id}/payment-link`)
+    paymentLink.value = data.payment_link ?? data.invoice?.razorpay_payment_link_url ?? ''
+    loadData()
+}
+
+function copyLink() {
+    if (paymentLink.value) {
+        navigator.clipboard.writeText(paymentLink.value)
+        linkCopied.value = true
+        setTimeout(() => { linkCopied.value = false }, 2000)
+    }
+}
+
+async function syncPaymentLink() {
+    await api.post(`/invoices/${invoice.value.id}/payment-link/sync`)
+    loadData()
+}
+
+function statusClass(s) {
+    return { paid: 'bg-green-100 text-green-800', unpaid: 'bg-red-100 text-red-800', partial: 'bg-yellow-100 text-yellow-800' }[s] || ''
+}
+function fmt(n) { return '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }
+
+onMounted(loadData)
+</script>
