@@ -13,4 +13,13 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://gst-billing.test',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
 })

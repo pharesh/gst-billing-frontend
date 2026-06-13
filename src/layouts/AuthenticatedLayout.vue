@@ -98,6 +98,34 @@
       </div>
     </nav>
 
+    <!-- Admin Sub-Nav -->
+    <nav v-if="auth.isSuperAdmin && route.path.startsWith('/admin')" class="bg-gray-800">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="flex h-10 items-center space-x-1">
+          <RouterLink
+            to="/admin"
+            class="px-3 py-1.5 text-sm font-medium text-gray-300 rounded hover:bg-gray-700 hover:text-white transition-colors"
+            :class="{ 'bg-gray-700 text-white': route.path === '/admin' }"
+          >Admin Dashboard</RouterLink>
+          <RouterLink
+            to="/admin/tenants"
+            class="px-3 py-1.5 text-sm font-medium text-gray-300 rounded hover:bg-gray-700 hover:text-white transition-colors"
+            :class="{ 'bg-gray-700 text-white': route.path.startsWith('/admin/tenants') }"
+          >Tenants</RouterLink>
+          <RouterLink
+            to="/admin/plans"
+            class="px-3 py-1.5 text-sm font-medium text-gray-300 rounded hover:bg-gray-700 hover:text-white transition-colors"
+            :class="{ 'bg-gray-700 text-white': route.path.startsWith('/admin/plans') }"
+          >Plans</RouterLink>
+          <RouterLink
+            to="/admin/system-settings"
+            class="px-3 py-1.5 text-sm font-medium text-gray-300 rounded hover:bg-gray-700 hover:text-white transition-colors"
+            :class="{ 'bg-gray-700 text-white': route.path.startsWith('/admin/system-settings') }"
+          >System Settings</RouterLink>
+        </div>
+      </div>
+    </nav>
+
     <!-- Page Header -->
     <header v-if="$slots.header" class="bg-white shadow">
       <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
@@ -114,16 +142,19 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.js'
 import NavLink from '@/components/NavLink.vue'
 
 const auth    = useAuthStore()
 const router  = useRouter()
+const route   = useRoute()
 
 const showUserMenu    = ref(false)
 const showMobileMenu  = ref(false)
 const showReports     = ref(false)
+const reportsMenu     = ref(null)
+const userMenu        = ref(null)
 
 async function handleLogout() {
     await auth.logout()
@@ -131,16 +162,14 @@ async function handleLogout() {
 }
 
 function handleOutsideClick(e) {
-    if (!e.target.closest('[data-dropdown]')) {
-        showUserMenu.value  = false
-        showReports.value   = false
+    if (!reportsMenu.value?.contains(e.target)) {
+        showReports.value = false
+    }
+    if (!userMenu.value?.contains(e.target)) {
+        showUserMenu.value = false
     }
 }
 
 onMounted(() => document.addEventListener('click', handleOutsideClick))
 onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
-</script>
-
-<script>
-// NavLink helper component — inline so we don't need a separate file
 </script>

@@ -60,8 +60,11 @@ async function handleSubmit() {
             router.push('/dashboard')
         }
     } catch (err) {
-        if (err.response?.status === 422) {
+        const status = err.response?.status
+        if (status === 422) {
             errors.value = err.response.data.errors ?? {}
+        } else if (status >= 500) {
+            errors.value = { email: ['Server error. Please try again later.'] }
         } else {
             errors.value = { email: [err.response?.data?.message ?? 'Invalid credentials.'] }
         }

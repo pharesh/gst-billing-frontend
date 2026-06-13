@@ -61,12 +61,12 @@ async function loadData() {
     tenant.value = data.tenant; plans.value = data.plans ?? []; loading.value = false
 }
 async function toggleStatus(val) {
-    await api.patch('/admin/tenants/' + route.params.id + '/status', { is_active: val })
+    await api.post('/admin/tenants/' + route.params.id + '/toggle-suspend')
     await loadData()
 }
 async function changePlan() {
     if (!newPlan.value) return
-    await api.patch('/admin/tenants/' + route.params.id + '/plan', { plan_id: newPlan.value })
+    await api.post('/admin/tenants/' + route.params.id + '/assign-plan', { plan_id: newPlan.value })
     newPlan.value = ''; await loadData()
 }
 onMounted(loadData)

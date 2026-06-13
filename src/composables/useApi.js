@@ -11,10 +11,9 @@ export function useApi() {
         processing.value = true
         errors.value     = {}
         try {
-            const axiosConfig = method === 'get'
-                ? { params: data }
-                : {}
-            const response = await api[method](url, method === 'get' ? undefined : data, axiosConfig)
+            const response = method === 'get'
+                ? await api.get(url, { params: data })
+                : await api[method](url, data)
             if (response.data?.message) flash.set('success', response.data.message)
             opts.onSuccess?.(response.data)
             return response.data

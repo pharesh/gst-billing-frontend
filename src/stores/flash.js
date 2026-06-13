@@ -13,9 +13,8 @@ export const useFlashStore = defineStore('flash', {
             setTimeout(() => { this[type] = null }, 5000)
         },
 
-        success(msg) { this.set('success', msg) },
-        error(msg)   { this.set('error', msg)   },
-        info(msg)    { this.set('info', msg)     },
-        clear()      { this.success = this.error = this.info = null },
+        clear() {
+            this.$patch({ success: null, error: null, info: null })
+        },
     },
 })
