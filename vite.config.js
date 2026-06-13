@@ -16,7 +16,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://gst-billing.test',
+        target: 'https://gst-billing-c3gf.onrender.com',
         changeOrigin: true,
         secure: false,
       },
